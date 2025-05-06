@@ -1,0 +1,18 @@
+source:
+  host: source.host.gob.ar
+  user: user
+  password: password
+  remote_file_path: /remote/file/path.nc
+  local_file_path: local/file/path.nc
+dest:
+  url: https://host.gob.ar/api
+  token: my_token
+points:
+- # SFER (Lujan)
+  series_id: 6066
+  lat: -34.5
+  lon: -58.375
+- # NPAL (Uruguay)
+  series_id: 6071 
+  lat: -34.25
+  lon: -58.125

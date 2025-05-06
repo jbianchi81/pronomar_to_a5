@@ -1,2 +1,4 @@
 pandas
 xarray
+a5-client
+netcdf4

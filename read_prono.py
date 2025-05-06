@@ -3,6 +3,14 @@ from pandas import DataFrame
 from typing import List, TypedDict
 import json
 from datetime import datetime
+import yaml
+import os
+from a5client import Crud
+import argparse
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(script_dir, "config/default.yml")
+config = yaml.load(open(config_path,"r",encoding="utf-8"),Loader=yaml.CLoader)
 
 ## tipos y defaults
 
@@ -77,22 +85,47 @@ def extractPronosAtPoint(dataset : xr.Dataset, lon : float, lat : float, lat_coo
 
 def extractStat(aggregated_df: DataFrame, stat_name : str, value_column :str = "zeta_masked", time_column : str = "time") -> List[Pronostico]:
     df = aggregated_df[value_column][stat_name].reset_index()
-    df['timestart'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S.%f').str.rstrip('0').str.rstrip('.')
+    df['timestart'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     return df[["timestart",stat_name]].rename(columns={stat_name:"valor"}).to_dict(orient="records")
 
-def datasetToProno(filename : str, points : List[PointMap] = default_points, cal_id : int = default_cal_id, **kwargs) -> Corrida:
+def datasetToProno(filename : str = None, points : List[PointMap] = None, cal_id : int = default_cal_id, upload = False, **kwargs) -> Corrida:
+    if filename is None:
+        filename = os.path.join(script_dir, config["source"]["local_file_path"])
+    if points is None:
+        if "points" in config:
+            points = config["points"]
+        else:
+            points = default_points
     dataset = openDataset(filename)
     forecast_date = datetime(int(dataset.title[0:4]),int(dataset.title[5:6]),int(dataset.title[7:8]), int(dataset.title[10:11]))
     series_prono = []
     for point in points:
         series_prono.extend(extractPronosAtPoint(dataset, point["lon"], point["lat"], series_id = point["series_id"], **kwargs))
-    return {
+    corrida = {
         "$schema": "https://raw.githubusercontent.com/jbianchi81/alerta5DBIO/refs/heads/master/public/schemas/a5/corrida.yml",
         "cal_id": cal_id,
-        "forecast_date": forecast_date.isoformat(),
+        "forecast_date": "%s.000Z" % forecast_date.isoformat(),
         "series": series_prono
     }
+    if upload:
+        crud = Crud(config["dest"]["url"],config["dest"]["token"])
+        response = crud.createCorrida(corrida)
+        return response
+    else:
+        return corrida
+
+def main():
+    parser = argparse.ArgumentParser(description="Read netcdf prono and convert into a5 json, optionally upload to database")
+    parser.add_argument('-u', '--upload', action='store_true', help='Upload to database')
+    parser.add_argument('-o', '--output', required=False, help='Save result into file. If not set, will print to stdout')
+
+    args = parser.parse_args()
+
+    series_prono = datasetToProno(upload=args.upload)
+    if args.output:
+        json.dump(series_prono, open(args.output,"w",encoding="utf-8"), indent=2)
+    else:
+        print(json.dumps(series_prono, indent=2))
 
 if __name__ == "__main__":
-    series_prono = datasetToProno("data/prono.00.nc", default_points)
-    print(json.dumps(series_prono, indent=2))
+    main()
