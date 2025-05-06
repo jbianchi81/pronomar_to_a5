@@ -24,3 +24,7 @@ Convierte en formato a5 json y guarda en base de datos
 ```bash
 python read_prono.py -o data/corrida_guardada.json -u
 ```
+Descarga, convierte en formato a5 json y guarda en base de datos
+```bash
+python run.py -o data/corrida_guardada.json -u
+```
