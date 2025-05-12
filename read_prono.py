@@ -88,6 +88,9 @@ def extractStat(aggregated_df: DataFrame, stat_name : str, value_column :str = "
     df['timestart'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     return df[["timestart",stat_name]].rename(columns={stat_name:"valor"}).to_dict(orient="records")
 
+def parseForecastDate(title : str) -> datetime:
+    return datetime(int(title[0:4]),int(title[4:6]),int(title[6:8]), int(title[9:11]))
+
 def datasetToProno(filename : str = None, points : List[PointMap] = None, cal_id : int = default_cal_id, upload = False, **kwargs) -> Corrida:
     if filename is None:
         filename = os.path.join(script_dir, config["source"]["local_file_path"])
@@ -97,7 +100,7 @@ def datasetToProno(filename : str = None, points : List[PointMap] = None, cal_id
         else:
             points = default_points
     dataset = openDataset(filename)
-    forecast_date = datetime(int(dataset.title[0:4]),int(dataset.title[5:6]),int(dataset.title[7:8]), int(dataset.title[10:11]))
+    forecast_date = parseForecastDate(dataset.title)
     series_prono = []
     for point in points:
         series_prono.extend(extractPronosAtPoint(dataset, point["lon"], point["lat"], series_id = point["series_id"], **kwargs))
